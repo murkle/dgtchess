@@ -1,69 +1,31 @@
 # dgtchess
 
-A JavaScript connector for the electronic [DGT](http://dgtprojects.com) chess board, working both in the browser and node.js.
+A JavaScript connector for the electronic [DGT](http://dgtprojects.com) chess board, working in the browser with WebSerial.
 
 ## Browser Usage
 
-The client version relies on the browser's [Web Serial API](https://wicg.github.io/serial/), which is currently supported only by Google Chrome 80 and later and needs to be enabled via the `#enable-experimental-web-platform-features` flag in `chrome://flags`.
+The client version relies on the browser's [Web Serial API](https://wicg.github.io/serial/), which is [currently supported](https://caniuse.com/web-serial) only by Google Chrome, Microsoft Edge and Opera
 
-Because the Web Serial API is available only on modern browsers, it is very likely that you can simply import the provided `Board.js` as a JavaScript module. The `Board` constructor expects an open port as returned by the Web Serial API as its first argument.
-
-```
-<button onclick="loadBoard()">Load position from DGT board</button>
-<script type="module" src="main.js">
-  import Board from 'chessground/Board.js'
-  async function loadBoard () {
-    const port = await navigator.serial.requestPort({})
-    const board = new Board(port)
-    const { serialNr, version, position } = await board.reset()
-    console.log(serialNr, version)
-    console.log(position.ascii)
-  }
-</script>
-```
+The `Board` constructor expects an open port as returned by the Web Serial API as its first argument.
 
 In `example/index.html`, we provide a standalone example web page that loads the DGT chess board's information and dynamically displays the current position:
 
 ![Screencast](example/screencast.gif)
 
-## Usage with node.js
+## Changes
 
-Using npm, you can install dgtchess by calling this:
-
-```sh
-npm install dgtchess
+Changes from the [original code](https://github.com/fnogatz/dgtchess)
+* changed WebSerial initialisation so that it works (for me)
+* added in correct vendor/device IDs for the DGT Smart Board
 ```
-
-The node.js version relies on [Node Serialport](https://serialport.io/) to connect to the DGT chess board. Its path is expected as the first argument of the `Board` constructor, e.g. `/dev/ttyUSB0` on Linux machines. For the node.js version, dgtchess internally maps to `Board.node.js` which replaces some of the Web Serial APIs by the ones provided by Node Serialport.
-
-```js
-import Board from 'dgtchess'
-const board = new Board('/dev/ttyUSB0')
-const { serialNr, version, position } = await board.reset()
-console.log(serialNr, version)
-console.log(position.ascii)
+{ usbVendorId: 0x045b, usbProductId: 0x8111 }
 ```
-
-This might result in the following output:
-
+* removed node.js support
+* changed code to not use modules etc - now it works from file:// so easier to prototype with
+* added a quick hack to avoid a crash here in Board.js - not sure currently why that's happening
 ```
-13116 1.8
-  +------------------------+
-8 | .  .  .  .  .  .  .  . |
-7 | .  .  Q  .  .  .  .  . |
-6 | .  .  .  .  .  .  .  . |
-5 | .  .  .  .  .  .  k  . |
-4 | .  .  R  .  .  .  .  . |
-3 | .  .  .  .  .  .  .  . |
-2 | .  .  .  K  .  .  .  . |
-1 | .  .  .  .  .  .  .  . |
-  +------------------------+
-    a  b  c  d  e  f  g  h
+message.set(value, pos)
 ```
-
-## Status
-
-The current version of this module uses only the `UPDATE BOARD` modus and instead of moves, only changes are triggered through the 'data' event.
 
 ## Background
 
