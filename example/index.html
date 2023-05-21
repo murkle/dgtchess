@@ -1,73 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>dgtchess – Access DGT chess board via WebUSB</title>
 
-    <script src="plugins/chessground/chessground.min.js"></script>
-    <link rel="stylesheet" href="plugins/chessground/base.css">
-    <link rel="stylesheet" href="plugins/chessground/colors.css">
-    <link rel="stylesheet" href="plugins/chessground/pieces.css">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Read DGT Smart Board using WebSerial</title>
+	<script src="../lib/Command.js"></script>
+	<script src="../lib/Board.js"></script>
+	<script src="plugins/chessground/chessground.min.js"></script>
+	<link rel="stylesheet" href="plugins/chessground/base.css">
+	<link rel="stylesheet" href="plugins/chessground/colors.css">
+	<link rel="stylesheet" href="plugins/chessground/pieces.css">
+</head>
 
-    <script type="module">
-      import Board from '../lib/Board.js'
-      (function () {
-        window.loadBoard = loadBoard
+<body>
+	<button onclick="connect()">Connect to DGT Smart Board</button>
+	<div id="chessground" style="width: 600px; height: 600px; margin-top: 30px;"></div>
+	<script>
+	var port;
 
-        let board
-        let chessground
+	function connect() {
+		if(!('serial' in navigator)) {
+			alert("WebSerial not available");
+		}
+		// DGT Smart Board
+		const filters = Board.FILTERS;
+		navigator.serial.requestPort({
+			filters
+		}).then(sent => {
+			console.log("port opened OK");
+			port = sent;
+			port.open({
+				baudRate: 9600
+			}).then(() => {
+				console.log("baud set OK");
+				loadBoard(port);
+			});
+		});
+	}
+	let board
+	let chessground
+	async function loadBoard(port) {
+		if(!board) {
+			board = new Board(port);
+		}
+		const {
+			serialNr,
+			version,
+			position
+		} = await board.reset();
+		console.log("Serial Number = " + serialNr);
+		console.log("Firmware version = " + version);
+		//console.log(position, position.entries().next().value[1]);
+		chessground = Chessground(document.getElementById('chessground'), {
+			viewOnly: true,
+			fen: '8/8/8/8/8/8/8/8/8'
+		})
+		chessground.setPieces(position)
+		while(true) {
+			const {
+				serialNr,
+				version,
+				position
+			} = await board.reset();
+			chessground.setPieces(position)
+		}
+	}
+	</script>
+</body>
 
-        async function loadBoard () {
-          const port = await getPort()
-          if (!port) {
-            throw new Error('No port available.')
-          }
-          await port.open({ baudRate: 9600 })
-
-          board = new Board(port)
-          const { serialNr, version, position } = await board.reset()
-          document.getElementById('serialnr').innerHTML = serialNr
-          document.getElementById('version').innerHTML = version
-
-          chessground = Chessground(document.getElementById('chessground'), {
-            viewOnly: true,
-            fen: '8/8/8/8/8/8/8/8/8'
-          })
-          chessground.setPieces(position)
-
-          const reader = board.getReader()
-          while (true) {
-            const { value } = await reader.read()
-            chessground.setPieces(value)
-          }
-        }
-
-        async function getPort () {
-          const ports = await navigator.serial.getPorts()
-          for (const port of ports) {
-            for (const filter of Board.FILTERS) {
-              if (port.productId === filter.productId && port.vendorId === filter.vendorId) {
-                return port
-              }
-            }
-          }
-
-          // do not use `Board.FILTERS` as of now since we do not
-          //   know all valid identifiers, also when using a VM etc.
-          const filters = []
-          return await navigator.serial.requestPort({
-            filters: filters
-          })
-        }
-      })()
-    </script>
-  </head>
-  <body>
-    <button onclick="loadBoard()">Load position from DGT board</button>
-
-    <p><strong>Serial Nr:</strong> <span id="serialnr">n/a</span></p>
-    <p><strong>Version:</strong> <span id="version">n/a</span></p>
-
-    <div id="chessground" style="width: 600px; height: 600px; margin-top: 30px;"></div>
-  </body>
 </html>
